@@ -1,0 +1,53 @@
+[package]
+name = "push2talk"
+version = "0.1.0"
+description = "A Tauri App"
+authors = ["you"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "push2talk_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri-plugin-opener = "2"
+tauri-plugin-autostart = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+directories = "5"
+cpal = "0.15"
+hound = "3.5"
+reqwest = { version = "0.12", features = ["stream"] }
+tokio = { version = "1", features = ["fs", "io-util"] }
+futures-util = "0.3"
+thiserror = "2"
+log = "0.4"
+env_logger = "0.11"
+rfd = "0.17"
+
+# GPU backend picked per-OS: Vulkan on Linux (covers NVIDIA/AMD/Intel), Metal
+# on macOS. Requires clang + libclang-dev at build time (whisper-rs-sys's
+# bindgen step) — an earlier attempt without those installed left a stale,
+# incomplete bindings.rs cached that made the vulkan feature fail to compile
+# ("no ggml_backend_vk_get_device_count in the root"), which looked like an
+# upstream whisper-rs bug but wasn't: `cargo clean -p whisper-rs-sys` and a
+# clean rebuild with clang/libclang-dev present resolved it. whisper.cpp
+# falls back to CPU at runtime if no compatible GPU/driver is found.
+[target.'cfg(target_os = "linux")'.dependencies]
+evdev = "0.13"
+whisper-rs = { version = "0.16", features = ["vulkan"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+rdev = "0.5"
+enigo = "0.6"
+whisper-rs = { version = "0.16", features = ["metal"] }
+

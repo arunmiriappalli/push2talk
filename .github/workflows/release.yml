@@ -1,0 +1,81 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-tauri:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'macos-latest'
+            args: '--target aarch64-apple-darwin'
+          - platform: 'macos-latest'
+            args: '--target x86_64-apple-darwin'
+          - platform: 'ubuntu-latest'
+            args: ''
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      # whisper-rs statically builds whisper.cpp (+ its Vulkan GPU backend) at
+      # compile time (needs cmake, a C/C++ compiler, clang/libclang-dev for
+      # bindgen, and libvulkan-dev + glslc to compile the Vulkan backend/
+      # shaders), and cpal/evdev pull in a handful of Tauri's usual Linux
+      # system deps. Without clang/libclang-dev, bindgen silently falls back
+      # to a stale bundled bindings file instead of failing loudly — make
+      # sure this step runs on a clean cache if debugging a Vulkan build
+      # failure (see README's Known limitations).
+      - name: install system dependencies (ubuntu only)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential curl wget file patchelf xdg-utils cmake pkg-config \
+            libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev \
+            libxdo-dev libssl-dev libasound2-dev clang libclang-dev libvulkan-dev glslc
+
+      - name: install cmake (macos only)
+        if: matrix.platform == 'macos-latest'
+        run: brew install cmake
+
+      - name: install frontend dependencies
+        run: npm ci
+
+      - uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:hello
+          tagName: ${{ github.ref_name }}
+          releaseName: 'push2talk ${{ github.ref_name }}'
+          releaseBody: |
+            See the assets below for your platform.
+
+            - Linux: `.deb` or `.AppImage`
+            - macOS (Apple Silicon): the `aarch64` `.dmg`
+            - macOS (Intel): the `x86_64` `.dmg`
+
+            macOS builds are unsigned/unnotarized — Gatekeeper will warn on
+            first launch (right-click → Open to bypass, or `xattr -d
+            com.apple.quarantine push2talk.app`).
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}

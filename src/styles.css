@@ -1,0 +1,272 @@
+:root {
+  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color: #16181d;
+  background-color: #f6f6f7;
+  color-scheme: light dark;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+.container {
+  margin: 0;
+  padding: 2.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  max-width: 640px;
+  margin-inline: auto;
+}
+
+h1 {
+  font-size: 1.4rem;
+  margin: 0 0 0.75rem 0;
+}
+
+p {
+  margin: 0 0 1rem 0;
+}
+
+.muted {
+  opacity: 0.65;
+  font-size: 0.9em;
+}
+
+.ok {
+  color: #1a9d5c;
+  font-weight: 600;
+}
+
+.error {
+  color: #d94f4f;
+  font-weight: 500;
+}
+
+.error-banner {
+  background: #ffe6e6;
+  color: #7a1414;
+  border: 1px solid #f0b4b4;
+  border-radius: 8px;
+  padding: 0.7rem 1rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.9em;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1.25rem;
+  text-align: left;
+}
+
+.field.row {
+  flex-direction: row;
+  align-items: center;
+}
+
+.field > span:first-child {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.pill {
+  display: inline-block;
+  padding: 0.3em 0.8em;
+  border-radius: 999px;
+  background: rgba(100, 108, 255, 0.15);
+  font-weight: 600;
+}
+
+.pill-small {
+  display: inline-block;
+  padding: 0.1em 0.6em;
+  border-radius: 999px;
+  background: rgba(26, 157, 92, 0.16);
+  color: #1a9d5c;
+  font-size: 0.75em;
+  font-weight: 700;
+  margin-left: 0.5em;
+  vertical-align: middle;
+}
+
+select,
+input[type="text"],
+button {
+  appearance: none;
+  -webkit-appearance: none;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  padding: 0.55em 1em;
+  font-size: 0.95em;
+  font-weight: 500;
+  font-family: inherit;
+  color: #16181d;
+  background-color: #ffffff;
+  transition: border-color 0.2s;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: #646cff;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button.primary {
+  background-color: #646cff;
+  color: white;
+  border-color: #646cff;
+}
+
+button.primary:hover {
+  background-color: #535bf2;
+}
+
+.model-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.model-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  padding: 0.7rem 0.9rem;
+  cursor: pointer;
+}
+
+.model-option.selected {
+  border-color: #646cff;
+  background: rgba(100, 108, 255, 0.08);
+}
+
+.model-option input {
+  margin-top: 0.25rem;
+}
+
+.model-info progress {
+  width: 100%;
+  margin-top: 0.4rem;
+}
+
+/* wizard */
+
+.progress-bar {
+  height: 4px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 2px;
+  margin-bottom: 2rem;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #646cff;
+  transition: width 0.2s ease;
+}
+
+.wizard-nav {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2rem;
+}
+
+/* settings */
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.status-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.25em 0.7em;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.status-badge.status-recording {
+  background: #ffd7d7;
+  color: #a11d1d;
+}
+
+.status-badge.status-transcribing {
+  background: #fff2c4;
+  color: #8a6d00;
+}
+
+.status-badge.status-error {
+  background: #ffd7d7;
+  color: #a11d1d;
+}
+
+.settings-actions {
+  margin-top: 1.5rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color: #f2f2f4;
+    background-color: #1e1f24;
+  }
+
+  select,
+  input[type="text"],
+  button {
+    color: #f2f2f4;
+    background-color: #2a2b31;
+    border-color: rgba(255, 255, 255, 0.14);
+  }
+
+  .model-option,
+  .progress-bar {
+    border-color: rgba(255, 255, 255, 0.14);
+    background-color: transparent;
+  }
+
+  .status-badge {
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .error-banner {
+    background: rgba(217, 79, 79, 0.16);
+    color: #ff9d9d;
+    border-color: rgba(217, 79, 79, 0.4);
+  }
+}
