@@ -29,8 +29,14 @@ jobs:
       # clang refuses to compile those calls ("'path' is unavailable:
       # introduced in macOS 10.15"). 11.0 covers both build targets (Apple
       # Silicon never shipped below 11.0 anyway) and is a common modern
-      # baseline.
+      # baseline. Setting plain MACOSX_DEPLOYMENT_TARGET wasn't enough on
+      # this runner's CMake/Xcode combo — it still fell through to the SDK's
+      # own default (10.13) — so also set CMAKE_OSX_DEPLOYMENT_TARGET
+      # directly: whisper-rs-sys's build.rs explicitly forwards any
+      # CMAKE_*-prefixed env var as a `-D` define, which takes priority over
+      # whatever fallback chain was swallowing the plain env var.
       MACOSX_DEPLOYMENT_TARGET: '11.0'
+      CMAKE_OSX_DEPLOYMENT_TARGET: '11.0'
     steps:
       - uses: actions/checkout@v4
 
