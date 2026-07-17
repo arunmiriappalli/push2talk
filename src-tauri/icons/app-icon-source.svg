@@ -1,0 +1,40 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7b82ff"/>
+      <stop offset="100%" stop-color="#4b3fd6"/>
+    </linearGradient>
+    <linearGradient id="mic" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#eef0ff"/>
+    </linearGradient>
+  </defs>
+
+  <!-- squircle-ish background -->
+  <rect x="0" y="0" width="1024" height="1024" rx="230" ry="230" fill="url(#bg)"/>
+
+  <!-- subtle inner glow -->
+  <rect x="0" y="0" width="1024" height="1024" rx="230" ry="230" fill="url(#bg)"/>
+  <ellipse cx="512" cy="330" rx="360" ry="220" fill="#ffffff" opacity="0.06"/>
+
+  <!-- sound wave arcs -->
+  <g stroke="#ffffff" stroke-width="26" fill="none" stroke-linecap="round" opacity="0.85">
+    <path d="M 300 430 A 220 220 0 0 0 300 610"/>
+    <path d="M 230 380 A 300 300 0 0 0 230 660"/>
+    <path d="M 724 430 A 220 220 0 0 1 724 610"/>
+    <path d="M 794 380 A 300 300 0 0 1 794 660"/>
+  </g>
+
+  <!-- microphone body -->
+  <rect x="422" y="270" width="180" height="300" rx="90" ry="90" fill="url(#mic)"/>
+
+  <!-- microphone stand (U shape) -->
+  <path d="M 362 520
+           a 150 150 0 0 0 300 0"
+        fill="none" stroke="url(#mic)" stroke-width="34" stroke-linecap="round"/>
+
+  <!-- stand post -->
+  <rect x="497" y="660" width="30" height="110" rx="15" fill="url(#mic)"/>
+  <!-- base -->
+  <rect x="422" y="754" width="180" height="34" rx="17" fill="url(#mic)"/>
+</svg>

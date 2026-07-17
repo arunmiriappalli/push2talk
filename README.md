@@ -105,6 +105,14 @@ what `cmake` is for) — no separate whisper.cpp clone or model files are
 needed at build time; Whisper models are downloaded on demand by the setup
 wizard.
 
+To regenerate the app icon from its source (`src-tauri/icons/app-icon-source.svg`)
+after editing it:
+
+```bash
+npx tauri icon src-tauri/icons/app-icon-source.svg --output src-tauri/icons
+rm -rf src-tauri/icons/android src-tauri/icons/ios  # this project is desktop-only
+```
+
 ## How it works
 
 - **Hotkey capture** — Linux reads raw input events directly from
