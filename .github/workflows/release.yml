@@ -22,6 +22,15 @@ jobs:
             args: ''
 
     runs-on: ${{ matrix.platform }}
+    env:
+      # whisper.cpp's ggml-backend-reg.cpp uses std::filesystem::path, whose
+      # libc++ symbols Apple only marks available from macOS 10.15 onward —
+      # without an explicit deployment target the build defaults lower and
+      # clang refuses to compile those calls ("'path' is unavailable:
+      # introduced in macOS 10.15"). 11.0 covers both build targets (Apple
+      # Silicon never shipped below 11.0 anyway) and is a common modern
+      # baseline.
+      MACOSX_DEPLOYMENT_TARGET: '11.0'
     steps:
       - uses: actions/checkout@v4
 
