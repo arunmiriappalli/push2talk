@@ -20,7 +20,7 @@ fn is_useful_alsa_name(name: &str) -> bool {
 pub fn list_input_devices() -> Vec<String> {
     let host = cpal::default_host();
     let names: Vec<String> = match host.input_devices() {
-        Ok(devices) => devices.filter_map(|d| d.name().ok()).collect(),
+        Ok(devices) => devices.map(|d| d.to_string()).collect(),
         Err(_) => return Vec::new(),
     };
 
@@ -46,7 +46,7 @@ fn find_device(name: Option<&str>) -> Result<cpal::Device, String> {
         Some(name) => host
             .input_devices()
             .map_err(|e| e.to_string())?
-            .find(|d| d.name().map(|n| n == name).unwrap_or(false))
+            .find(|d| d.to_string() == name)
             .ok_or_else(|| format!("Input device '{name}' not found")),
     }
 }
@@ -65,13 +65,10 @@ pub fn start(device_name: Option<&str>) -> Result<Recording, String> {
     let config = device
         .default_input_config()
         .map_err(|e| format!("No default input config: {e}"))?;
-    let sample_rate = config.sample_rate().0;
+    let sample_rate = config.sample_rate();
     let channels = config.channels();
     log::info!(
-        "push2talk: starting recording on device {:?}, {} Hz, {} channel(s), format {:?}",
-        device.name(),
-        sample_rate,
-        channels,
+        "push2talk: starting recording on device {device}, {sample_rate} Hz, {channels} channel(s), format {:?}",
         config.sample_format()
     );
     let samples: Arc<Mutex<Vec<f32>>> = Arc::new(Mutex::new(Vec::new()));
@@ -82,7 +79,7 @@ pub fn start(device_name: Option<&str>) -> Result<Recording, String> {
     let stream = match config.sample_format() {
         cpal::SampleFormat::F32 => device
             .build_input_stream(
-                &config.into(),
+                config.into(),
                 move |data: &[f32], _: &cpal::InputCallbackInfo| {
                     samples_cb.lock().unwrap().extend_from_slice(data);
                 },
@@ -92,7 +89,7 @@ pub fn start(device_name: Option<&str>) -> Result<Recording, String> {
             .map_err(|e| e.to_string())?,
         cpal::SampleFormat::I16 => device
             .build_input_stream(
-                &config.into(),
+                config.into(),
                 move |data: &[i16], _: &cpal::InputCallbackInfo| {
                     let mut buf = samples_cb.lock().unwrap();
                     buf.extend(data.iter().map(|s| *s as f32 / i16::MAX as f32));
@@ -103,7 +100,7 @@ pub fn start(device_name: Option<&str>) -> Result<Recording, String> {
             .map_err(|e| e.to_string())?,
         cpal::SampleFormat::U16 => device
             .build_input_stream(
-                &config.into(),
+                config.into(),
                 move |data: &[u16], _: &cpal::InputCallbackInfo| {
                     let mut buf = samples_cb.lock().unwrap();
                     buf.extend(data.iter().map(|s| (*s as f32 - 32768.0) / 32768.0));

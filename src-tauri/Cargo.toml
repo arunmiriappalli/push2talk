@@ -23,10 +23,10 @@ tauri-plugin-opener = "2"
 tauri-plugin-autostart = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-directories = "5"
-cpal = "0.15"
+directories = "6"
+cpal = "0.18"
 hound = "3.5"
-reqwest = { version = "0.12", features = ["stream"] }
+reqwest = { version = "0.13", features = ["stream"] }
 tokio = { version = "1", features = ["fs", "io-util"] }
 futures-util = "0.3"
 thiserror = "2"
