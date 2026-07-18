@@ -67,6 +67,13 @@ pub fn start(device_name: Option<&str>) -> Result<Recording, String> {
         .map_err(|e| format!("No default input config: {e}"))?;
     let sample_rate = config.sample_rate().0;
     let channels = config.channels();
+    log::info!(
+        "push2talk: starting recording on device {:?}, {} Hz, {} channel(s), format {:?}",
+        device.name(),
+        sample_rate,
+        channels,
+        config.sample_format()
+    );
     let samples: Arc<Mutex<Vec<f32>>> = Arc::new(Mutex::new(Vec::new()));
 
     let samples_cb = samples.clone();
@@ -121,9 +128,19 @@ pub fn start(device_name: Option<&str>) -> Result<Recording, String> {
 /// Stops the stream and returns mono, 16kHz f32 PCM samples ready for whisper-rs.
 pub fn stop(recording: Recording) -> Vec<f32> {
     drop(recording.stream);
-    let raw = Arc::try_unwrap(recording.samples)
-        .map(|m| m.into_inner().unwrap())
-        .unwrap_or_default();
+    // NOT `Arc::try_unwrap(recording.samples)...unwrap_or_default()`: that
+    // requires this to already be the last owner of the Arc, but the
+    // callback closure holds its own clone, and dropping the stream doesn't
+    // synchronously guarantee that clone is released before this line runs
+    // (confirmed on real hardware -- the callback was firing with real,
+    // non-empty buffers the whole time, but try_unwrap still lost the race
+    // often enough to reliably return an empty Vec via unwrap_or_default,
+    // silently discarding a full recording every time). Locking and taking
+    // the contents works regardless of how many Arc clones are still live,
+    // since by this point the stream is stopped and nothing is going to
+    // write to it again.
+    let raw = std::mem::take(&mut *recording.samples.lock().unwrap());
+    log::info!("push2talk: captured {} raw samples", raw.len());
 
     let mono = downmix(&raw, recording.channels);
     resample_linear(&mono, recording.sample_rate, TARGET_SAMPLE_RATE)
