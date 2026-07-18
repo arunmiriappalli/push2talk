@@ -125,8 +125,10 @@ rm -rf src-tauri/icons/android src-tauri/icons/ios  # this project is desktop-on
 - **Hotkey capture** — Linux reads raw input events directly from
   `/dev/input/eventN` (via the `evdev` crate), the same approach as the
   original script's `evtest` usage; this works under both X11 and Wayland
-  since it bypasses the display server entirely. macOS uses a system-wide key
-  event tap (`rdev`).
+  since it bypasses the display server entirely. macOS uses a hand-rolled
+  `CGEventTap` (via `core-graphics`/`core-foundation`) that reads only the raw
+  keycode integer field from each event — see [Known limitations](#known-limitations)
+  for why it's hand-rolled instead of using the `rdev` crate.
 - **Recording** — `cpal` captures from the selected microphone; audio is
   downmixed to mono and resampled to 16kHz for Whisper.
 - **Transcription** — `whisper-rs` (Rust bindings to whisper.cpp) runs
@@ -167,10 +169,22 @@ package manager but fail to *launch* the app. `libvulkan1` (deb) /
   it's exactly what happened building this project; a manual `bindgen` run
   with identical flags produced the correct bindings immediately, which is
   what pointed at stale cache rather than an upstream bug.)
-- macOS's hotkey listener (`rdev`) and Metal GPU acceleration are still
-  unverified on real hardware — Linux was developed and tested directly;
-  the release build installs on Apple Silicon (M3/M4) but functional testing
-  (hotkey capture, transcription, typing) hasn't been confirmed there yet.
+- **The `rdev` crate crashes on real Apple Silicon hardware** (confirmed via
+  an actual crash report on macOS 26.5/M4, not a hypothetical): its event tap
+  callback unconditionally resolves a human-readable key name via Carbon/TSM
+  (`Keyboard::string_from_code` → `TSMGetInputSourceProperty`), which asserts
+  it's running on the main dispatch queue and aborts
+  (`dispatch_assert_queue_fail`, `EXC_BREAKPOINT`) when the tap runs on a
+  background thread — which is exactly how `rdev::listen()` is meant to be
+  used. Replaced with a hand-rolled `CGEventTap` that only ever reads the raw
+  keycode integer field (see "How it works" above); the crashing rdev
+  dependency has been removed entirely. This fix is unverified on real
+  hardware as of this writing — if hotkey capture still misbehaves on macOS,
+  this is the first place to look.
+- Metal GPU acceleration is still unverified on real hardware — Linux was
+  developed and tested directly; the release build installs and runs on
+  Apple Silicon (M3/M4) but transcription/GPU behavior hasn't been confirmed
+  there yet.
 - macOS releases are ad-hoc signed (no cost, no Apple Developer account) but
   not signed with a real Developer ID or notarized — Gatekeeper still warns
   on first launch, sometimes with a "damaged" message rather than the milder

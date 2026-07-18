@@ -46,8 +46,18 @@ rfd = "0.17"
 evdev = "0.13"
 whisper-rs = { version = "0.16", features = ["vulkan"] }
 
+# rdev previously used here for global hotkey capture; dropped after a real
+# crash on Apple Silicon (macOS 26.5, confirmed via crash report, not a
+# hypothetical): rdev's raw_callback unconditionally resolves a human-readable
+# key name via Carbon/TSM (Keyboard::string_from_code -> TSMGetInputSourceProperty),
+# which asserts it's running on the main dispatch queue and aborts
+# (dispatch_assert_queue_fail) when the tap runs on a background thread — which
+# is exactly how rdev::listen() is normally used (and how this app used it).
+# Replaced with a hand-rolled CGEventTap (core-graphics/core-foundation) that
+# only reads the raw keycode integer field, never touching TSM/Carbon at all.
 [target.'cfg(target_os = "macos")'.dependencies]
-rdev = "0.5"
+core-foundation = "0.10"
+core-graphics = "0.25"
 enigo = "0.6"
 whisper-rs = { version = "0.16", features = ["metal"] }
 

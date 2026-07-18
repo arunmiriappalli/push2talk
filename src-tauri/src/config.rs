@@ -12,9 +12,14 @@ pub enum HotkeyDescriptor {
         key_name: String,
     },
     Macos {
-        /// Debug representation of the rdev::Key variant (e.g. "F2"), used both
-        /// for display and as the comparison key when matching live events —
-        /// rdev's Key enum isn't serializable, so this string is the identity.
+        /// Raw CGEvent keyboard keycode (kCGKeyboardEventKeycode) — stable,
+        /// hardware/layout-independent. This is the comparison key used to
+        /// match live events.
+        key_code: i64,
+        /// Human-readable label for display only, resolved from a static
+        /// table of well-known macOS virtual keycodes (see
+        /// hotkey::macos::key_name_for) — never via Carbon/TSM APIs, which
+        /// must run on the main thread and crash otherwise (see Cargo.toml).
         key_name: String,
     },
 }

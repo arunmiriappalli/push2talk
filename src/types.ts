@@ -1,6 +1,6 @@
 export type HotkeyDescriptor =
   | { platform: "linux"; device_path: string; device_name: string; key_code: number; key_name: string }
-  | { platform: "macos"; key_name: string };
+  | { platform: "macos"; key_code: number; key_name: string };
 
 export interface ModelConfig {
   name: string;
