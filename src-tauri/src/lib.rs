@@ -13,6 +13,10 @@ use tauri::tray::TrayIconBuilder;
 use tauri::{Emitter, Listener, Manager};
 use tauri_plugin_autostart::MacosLauncher;
 
+extern "C" {
+    fn _exit(code: i32) -> !;
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
@@ -61,7 +65,22 @@ pub fn run() {
                         }
                     }
                     "quit" => {
-                        app.exit(0);
+                        // whisper.cpp's Metal backend frees a global device via a
+                        // C++ static destructor that runs during libc's normal
+                        // exit() cleanup (__cxa_finalize_ranges); on macOS that
+                        // destructor (ggml_metal_rsets_free) can race an async
+                        // Metal "residency set" init and hit a GGML_ASSERT,
+                        // aborting the whole process on quit (confirmed via a
+                        // real crash report, not a hypothetical). app.exit()
+                        // routes through that same exit() path, so it's not
+                        // used here -- _exit() terminates immediately without
+                        // running any static destructors, which sidesteps the
+                        // race entirely. There's nothing left to clean up
+                        // gracefully at this point anyway; the OS reclaims
+                        // everything on process exit regardless.
+                        unsafe {
+                            _exit(0);
+                        }
                     }
                     _ => {}
                 })

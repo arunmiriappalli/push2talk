@@ -90,7 +90,13 @@ check each one manually if something silently doesn't work:
 - **Microphone** — required to record audio at all. If this is missing,
   recording silently produces silence rather than failing loudly, which
   shows up as Whisper hallucinating "Thank you" (a known artifact of
-  transcribing near-silent audio) instead of your actual speech.
+  transcribing near-silent audio) instead of your actual speech. Unlike the
+  other two, macOS's Microphone pane has no manual "+" add button — push2talk
+  only appears there once it actually attempts to record, which triggers a
+  proper Allow/Deny system prompt (this requires the app's Info.plist to
+  declare `NSMicrophoneUsageDescription`, which it does). If you're not on a
+  build with that Info.plist entry, the OS silently denies access instead of
+  prompting at all.
 
 After granting or changing any of these, **fully quit push2talk** (tray menu
 → Quit, not just closing the window) and relaunch it — permission changes
@@ -213,6 +219,16 @@ package manager but fail to *launch* the app. `libvulkan1` (deb) /
   developed and tested directly; the release build runs on Apple Silicon
   (M3/M4) but GPU-specific transcription behavior hasn't been confirmed
   there yet (CPU-path transcription has been confirmed working).
+- **Quitting push2talk on macOS used to crash with SIGABRT** (confirmed via
+  a real crash report): whisper.cpp's Metal backend frees a global device
+  through a C++ static destructor that runs during libc's normal `exit()`
+  cleanup, and that destructor (`ggml_metal_rsets_free`) can race an async
+  Metal "residency set" initialization and hit an internal assertion,
+  aborting the whole process. Fixed by having the tray's "Quit" action call
+  `_exit()` directly instead of going through Tauri's `app.exit()` (which
+  routes through the same crashing `exit()` path) — `_exit()` terminates
+  immediately without running static destructors, which sidesteps the race.
+  There's nothing left to clean up gracefully at quit time anyway.
 - macOS releases are ad-hoc signed (no cost, no Apple Developer account) but
   not signed with a real Developer ID or notarized — Gatekeeper still warns
   on first launch, sometimes with a "damaged" message rather than the milder
