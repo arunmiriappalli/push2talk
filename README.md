@@ -71,10 +71,30 @@ package manager, so there's no dependency mechanism to lean on there.
 
 ### macOS prerequisites
 
-- Grant **Accessibility** permission to push2talk (System Settings → Privacy
-  & Security → Accessibility) so it can globally listen for your hotkey and
-  simulate keystrokes.
-- Grant **Microphone** permission when prompted.
+push2talk needs three separate permissions granted in System Settings →
+Privacy & Security, confirmed the hard way across real testing — macOS
+doesn't always prompt for these automatically on an ad-hoc-signed,
+unnotarized app the way it would for one signed with a real Developer ID, so
+check each one manually if something silently doesn't work:
+
+- **Input Monitoring** — required for the global hotkey listener to actually
+  *receive* key events. This is separate from Accessibility and easy to
+  miss; if "Press to set" in the wizard does nothing (no crash, no capture),
+  this is almost always why. If push2talk isn't listed, add it manually via
+  the "+" button.
+- **Accessibility** — required to simulate keystrokes (typing the
+  transcribed text). If this permission is stale (e.g. after updating to a
+  new build — ad-hoc signatures change on every rebuild, which can make
+  macOS treat a previous grant as no longer valid), remove push2talk from
+  the list with "−" and re-add it fresh with "+".
+- **Microphone** — required to record audio at all. If this is missing,
+  recording silently produces silence rather than failing loudly, which
+  shows up as Whisper hallucinating "Thank you" (a known artifact of
+  transcribing near-silent audio) instead of your actual speech.
+
+After granting or changing any of these, **fully quit push2talk** (tray menu
+→ Quit, not just closing the window) and relaunch it — permission changes
+often don't take effect for an already-running process.
 
 ## Building from source
 
@@ -169,22 +189,30 @@ package manager but fail to *launch* the app. `libvulkan1` (deb) /
   it's exactly what happened building this project; a manual `bindgen` run
   with identical flags produced the correct bindings immediately, which is
   what pointed at stale cache rather than an upstream bug.)
-- **The `rdev` crate crashes on real Apple Silicon hardware** (confirmed via
-  an actual crash report on macOS 26.5/M4, not a hypothetical): its event tap
-  callback unconditionally resolves a human-readable key name via Carbon/TSM
+- **The `rdev` crate used to crash on real Apple Silicon hardware** (confirmed
+  via an actual crash report on macOS 26.5/M4): its event tap callback
+  unconditionally resolves a human-readable key name via Carbon/TSM
   (`Keyboard::string_from_code` → `TSMGetInputSourceProperty`), which asserts
   it's running on the main dispatch queue and aborts
   (`dispatch_assert_queue_fail`, `EXC_BREAKPOINT`) when the tap runs on a
   background thread — which is exactly how `rdev::listen()` is meant to be
   used. Replaced with a hand-rolled `CGEventTap` that only ever reads the raw
-  keycode integer field (see "How it works" above); the crashing rdev
-  dependency has been removed entirely. This fix is unverified on real
-  hardware as of this writing — if hotkey capture still misbehaves on macOS,
-  this is the first place to look.
+  keycode integer field (see "How it works" above). **Confirmed fixed** on
+  real Apple Silicon hardware once Input Monitoring permission was granted
+  (see macOS prerequisites above) — no more crash.
+- **A missing `NSMicrophoneUsageDescription` Info.plist entry silently broke
+  recording on macOS** (confirmed on real hardware, not a hypothetical):
+  without it, macOS never prompts for Microphone access and just denies it,
+  which doesn't surface as an error — `cpal` still "records" successfully,
+  just silence, which Whisper then hallucinates into something like "Thank
+  you" (a well-known artifact of transcribing near-silent audio, not a bug
+  in the transcription itself). Fixed by adding `src-tauri/Info.plist` with
+  the required usage description string, which Tauri auto-merges into the
+  bundled Info.plist.
 - Metal GPU acceleration is still unverified on real hardware — Linux was
-  developed and tested directly; the release build installs and runs on
-  Apple Silicon (M3/M4) but transcription/GPU behavior hasn't been confirmed
-  there yet.
+  developed and tested directly; the release build runs on Apple Silicon
+  (M3/M4) but GPU-specific transcription behavior hasn't been confirmed
+  there yet (CPU-path transcription has been confirmed working).
 - macOS releases are ad-hoc signed (no cost, no Apple Developer account) but
   not signed with a real Developer ID or notarized — Gatekeeper still warns
   on first launch, sometimes with a "damaged" message rather than the milder
