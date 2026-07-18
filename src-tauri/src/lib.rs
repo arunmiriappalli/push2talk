@@ -8,7 +8,7 @@ mod models;
 mod transcribe;
 mod typist;
 
-use tauri::menu::{Menu, MenuItem};
+use tauri::menu::{Menu, MenuBuilder, MenuItem, SubmenuBuilder};
 use tauri::tray::TrayIconBuilder;
 use tauri::{Emitter, Listener, Manager};
 use tauri_plugin_autostart::MacosLauncher;
@@ -65,27 +65,69 @@ pub fn run() {
                         }
                     }
                     "quit" => {
-                        // whisper.cpp's Metal backend frees a global device via a
-                        // C++ static destructor that runs during libc's normal
-                        // exit() cleanup (__cxa_finalize_ranges); on macOS that
-                        // destructor (ggml_metal_rsets_free) can race an async
-                        // Metal "residency set" init and hit a GGML_ASSERT,
-                        // aborting the whole process on quit (confirmed via a
-                        // real crash report, not a hypothetical). app.exit()
-                        // routes through that same exit() path, so it's not
-                        // used here -- _exit() terminates immediately without
-                        // running any static destructors, which sidesteps the
-                        // race entirely. There's nothing left to clean up
-                        // gracefully at this point anyway; the OS reclaims
-                        // everything on process exit regardless.
-                        unsafe {
-                            _exit(0);
-                        }
+                        // See the RunEvent::ExitRequested handler in run() below
+                        // for why this goes through app.exit() (which raises
+                        // that event) rather than calling _exit() directly here
+                        // -- this tray item is only one of several paths that
+                        // can end the app (Cmd+Q and the system-generated app
+                        // menu's "Quit push2talk" also call NSApplication
+                        // terminate: directly, bypassing this handler entirely).
+                        app.exit(0);
                     }
                     _ => {}
                 })
                 .build(app)?;
             app.manage(tray);
+
+            // macOS auto-generates a default app menu when none is set, and
+            // its Quit item is Tauri's PredefinedMenuItem::quit(), which
+            // calls exit(0) directly in native code -- bypassing
+            // RunEvent::ExitRequested entirely (a known Tauri limitation:
+            // tauri-apps/tauri#3124, #7586). That means Cmd+Q and the
+            // system-generated "Quit push2talk" menu item still hit the
+            // whisper.cpp Metal teardown crash (see the ExitRequested
+            // handler below) even with that handler in place -- confirmed
+            // via two real crash reports whose binary UUID matched this
+            // exact fix already applied. Replacing the default menu with
+            // our own, using a plain custom MenuItem for Quit instead of
+            // the predefined one, routes it through on_menu_event/
+            // app.exit() like the tray's Quit item, so it actually reaches
+            // the ExitRequested interception. The Edit submenu is kept so
+            // standard Cmd+C/V/Z etc. keep working in the settings window's
+            // text fields, which relied on the default menu providing them.
+            let quit_app_item =
+                MenuItem::with_id(app, "quit_app", "Quit push2talk", true, Some("Cmd+Q"))?;
+            let app_submenu = SubmenuBuilder::new(app, "push2talk")
+                .about(None)
+                .separator()
+                .hide()
+                .hide_others()
+                .show_all()
+                .separator()
+                .item(&quit_app_item)
+                .build()?;
+            let edit_submenu = SubmenuBuilder::new(app, "Edit")
+                .undo()
+                .redo()
+                .separator()
+                .cut()
+                .copy()
+                .paste()
+                .select_all()
+                .build()?;
+            let window_submenu = SubmenuBuilder::new(app, "Window")
+                .minimize()
+                .close_window()
+                .build()?;
+            let app_menu = MenuBuilder::new(app)
+                .items(&[&app_submenu, &edit_submenu, &window_submenu])
+                .build()?;
+            app.set_menu(app_menu)?;
+            app.on_menu_event(|app, event| {
+                if event.id().as_ref() == "quit_app" {
+                    app.exit(0);
+                }
+            });
 
             let status_handle = handle.clone();
             app.listen("engine-status", move |event| {
@@ -131,6 +173,29 @@ pub fn run() {
 
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|_app_handle, event| {
+            // whisper.cpp's Metal backend frees a global device via a C++
+            // static destructor that runs during libc's normal exit()
+            // cleanup (__cxa_finalize_ranges); on macOS that destructor
+            // (ggml_metal_rsets_free) can race an async Metal "residency
+            // set" init and hit a GGML_ASSERT, aborting the whole process
+            // (confirmed via real crash reports, not a hypothetical).
+            // RunEvent::ExitRequested fires for every way the app can be
+            // asked to quit -- the tray's own "Quit" item (via app.exit()),
+            // Cmd+Q, and the system-generated app menu's "Quit push2talk"
+            // item all funnel through here, even though only the first of
+            // those goes through this crate's own code. Intercepting here
+            // once, instead of at each call site, is what actually covers
+            // all of them. _exit() terminates immediately without running
+            // any static destructors, sidestepping the race entirely --
+            // there's nothing left to clean up gracefully at quit time
+            // anyway; the OS reclaims everything on process exit regardless.
+            if let tauri::RunEvent::ExitRequested { .. } = event {
+                unsafe {
+                    _exit(0);
+                }
+            }
+        });
 }
