@@ -18,9 +18,16 @@ Grab the latest build for your OS from
 - **Linux**: `.deb` (Debian/Ubuntu) or `.AppImage` (portable, any distro)
 - **macOS**: `.dmg` — pick `aarch64` for Apple Silicon or `x86_64` for Intel
 
-macOS builds are unsigned (no Apple Developer account behind this project),
-so Gatekeeper will block the first launch. Right-click the app → *Open*, or
-run `xattr -d com.apple.quarantine /Applications/push2talk.app`.
+macOS builds are ad-hoc signed (no Apple Developer account behind this
+project — that costs $99/year, so this stays free) rather than signed with a
+real Developer ID and notarized. Gatekeeper will still flag the first
+launch. Try right-click the app → *Open* first; if macOS instead says the
+app "is damaged and can't be opened" (a misleading message some macOS
+versions show for unsigned apps, particularly on Apple Silicon — it's not
+actually a corrupted download), strip the quarantine flag instead:
+```bash
+xattr -cr /Applications/push2talk.app
+```
 
 On first launch, a setup wizard walks through: picking a microphone, setting
 your push-to-talk key, choosing and downloading a Whisper model, checking the
@@ -160,11 +167,15 @@ package manager but fail to *launch* the app. `libvulkan1` (deb) /
   it's exactly what happened building this project; a manual `bindgen` run
   with identical flags produced the correct bindings immediately, which is
   what pointed at stale cache rather than an upstream bug.)
-- macOS's hotkey listener (`rdev`) and Metal GPU acceleration haven't been
-  exercised on real hardware as part of this build — Linux was developed and
-  tested directly; macOS should be verified on an actual Mac before relying
-  on it.
-- macOS releases are unsigned/unnotarized.
+- macOS's hotkey listener (`rdev`) and Metal GPU acceleration are still
+  unverified on real hardware — Linux was developed and tested directly;
+  the release build installs on Apple Silicon (M3/M4) but functional testing
+  (hotkey capture, transcription, typing) hasn't been confirmed there yet.
+- macOS releases are ad-hoc signed (no cost, no Apple Developer account) but
+  not signed with a real Developer ID or notarized — Gatekeeper still warns
+  on first launch, sometimes with a "damaged" message rather than the milder
+  "unidentified developer" prompt depending on macOS version. See
+  [Installing](#installing) for the workaround.
 - Reconfiguring the hotkey while the app is running starts a new listener
   and retires the old one on its next event rather than tearing it down
   immediately — harmless, but means a stray background thread lingers per

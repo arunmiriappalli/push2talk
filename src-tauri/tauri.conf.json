@@ -42,6 +42,9 @@
         "depends": ["vulkan-loader"],
         "recommends": ["ydotool"]
       }
+    },
+    "macOS": {
+      "signingIdentity": "-"
     }
   }
 }
