@@ -180,6 +180,7 @@ impl EngineState {
             Err(e) => {
                 log::error!("push2talk: transcription failed: {e}");
                 self.emit_status(EngineStatus::Error { message: e });
+                self.emit_status(EngineStatus::Idle);
                 return;
             }
         };
@@ -194,6 +195,7 @@ impl EngineState {
             if let Err(e) = typist.type_text(&text, self.config.typing_delay_ms) {
                 log::error!("push2talk: typing failed: {e}");
                 self.emit_status(EngineStatus::Error { message: e });
+                self.emit_status(EngineStatus::Idle);
             }
         }
     }
