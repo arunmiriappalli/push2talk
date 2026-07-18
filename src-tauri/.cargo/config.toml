@@ -1,0 +1,17 @@
+# whisper.cpp's ggml-backend-reg.cpp uses std::filesystem::path, whose libc++
+# symbols Apple only marks available from macOS 10.15 onward — without an
+# explicit deployment target the build defaults lower (10.13) and clang
+# refuses to compile those calls ("'path' is unavailable: introduced in macOS
+# 10.15"). 11.0 covers both Apple Silicon and Intel builds and is a common
+# modern baseline. Plain MACOSX_DEPLOYMENT_TARGET alone isn't always enough —
+# on some CMake/Xcode combos it still falls through to the SDK's own default
+# — so CMAKE_OSX_DEPLOYMENT_TARGET is set too: whisper-rs-sys's build.rs
+# explicitly forwards any CMAKE_*-prefixed env var as a `-D` define, which
+# takes priority over whatever fallback chain was swallowing the plain env
+# var. These are macOS-only variable names, so they're harmless to set
+# unconditionally (this mirrors .github/workflows/release.yml, which sets
+# the same two vars for CI builds — this file is what makes local `npm run
+# tauri dev`/`build` on macOS get the same fix without CI).
+[env]
+MACOSX_DEPLOYMENT_TARGET = "11.0"
+CMAKE_OSX_DEPLOYMENT_TARGET = "11.0"
