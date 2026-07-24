@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>push2talk — local push-to-talk dictation</title>
+<meta name="description" content="Hold a key, speak, release it. Free, open-source, fully local speech-to-text powered by Whisper. No audio ever leaves your machine.">
+<meta property="og:title" content="push2talk">
+<meta property="og:description" content="Hold a key, speak, release it — local, free, open-source dictation powered by Whisper.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎙️</text></svg>">
+<style>
+  :root{
+    --bg:#fbfaf8; --bg-alt:#f2f0ec; --card:#ffffff; --text:#1c1b19; --text-dim:#5b5850;
+    --accent:#c65d2e; --accent-dim:#e0a988; --border:#e4e1da; --mono:#2c2a26;
+    --shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.06);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#161512; --bg-alt:#1e1c19; --card:#211f1c; --text:#f2efe9; --text-dim:#a8a297;
+      --accent:#e2814a; --accent-dim:#7a4526; --border:#332f2a; --mono:#efe9df;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 30px rgba(0,0,0,.35); }
+  }
+  :root[data-theme="dark"]{ --bg:#161512; --bg-alt:#1e1c19; --card:#211f1c; --text:#f2efe9; --text-dim:#a8a297;
+      --accent:#e2814a; --accent-dim:#7a4526; --border:#332f2a; --mono:#efe9df;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 30px rgba(0,0,0,.35); }
+  :root[data-theme="light"]{ --bg:#fbfaf8; --bg-alt:#f2f0ec; --card:#ffffff; --text:#1c1b19; --text-dim:#5b5850;
+      --accent:#c65d2e; --accent-dim:#e0a988; --border:#e4e1da; --mono:#2c2a26;
+      --shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.06); }
+
+  *{box-sizing:border-box}
+  html{background:var(--bg)}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
+    line-height:1.5; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:920px; margin:0 auto; padding:0 24px}
+  a{color:inherit}
+
+  header.top{padding:20px 0; border-bottom:1px solid var(--border)}
+  header.top .wrap{display:flex; align-items:center; justify-content:space-between}
+  .brand{display:flex; align-items:center; gap:10px; font-weight:700; font-size:1.05rem; text-decoration:none}
+  .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--accent)}
+  nav a{text-decoration:none; color:var(--text-dim); font-size:.92rem; margin-left:24px}
+  nav a:hover{color:var(--text)}
+
+  .hero{padding:88px 0 64px; text-align:center}
+  .hero h1{font-size:clamp(2.2rem,5vw,3.4rem); line-height:1.08; margin:0 0 18px; letter-spacing:-0.02em}
+  .hero h1 .accent{color:var(--accent)}
+  .hero p.sub{font-size:1.15rem; color:var(--text-dim); max-width:600px; margin:0 auto 36px}
+  .cta-row{display:flex; gap:14px; justify-content:center; flex-wrap:wrap}
+  .btn{
+    display:inline-flex; align-items:center; gap:8px; padding:13px 24px; border-radius:10px;
+    font-weight:600; font-size:.98rem; text-decoration:none; border:1px solid transparent; cursor:pointer;
+  }
+  .btn-primary{background:var(--accent); color:#fff}
+  .btn-primary:hover{filter:brightness(1.08)}
+  .btn-secondary{background:transparent; border-color:var(--border); color:var(--text)}
+  .btn-secondary:hover{background:var(--bg-alt)}
+  .hint{margin-top:14px; font-size:.85rem; color:var(--text-dim)}
+  .hint code{background:var(--bg-alt); padding:2px 6px; border-radius:4px; font-size:.82em}
+
+  .demo{margin:56px auto 0; max-width:640px; background:var(--card); border:1px solid var(--border);
+    border-radius:16px; box-shadow:var(--shadow); padding:36px 28px; text-align:left}
+  .demo-row{display:flex; align-items:center; gap:16px}
+  .key{
+    flex:none; width:64px; height:64px; border-radius:12px; border:1px solid var(--border);
+    background:var(--bg-alt); display:flex; align-items:center; justify-content:center;
+    font-weight:700; font-size:.85rem; color:var(--text-dim); position:relative;
+  }
+  .key.active{background:var(--accent); color:#fff; border-color:var(--accent)}
+  .waves{flex:1; height:64px; display:flex; align-items:center; gap:4px; justify-content:center}
+  .waves span{
+    display:block; width:4px; border-radius:2px; background:var(--accent-dim);
+    animation:wave 1.1s ease-in-out infinite;
+  }
+  @keyframes wave{ 0%,100%{height:8px; opacity:.5} 50%{height:38px; opacity:1} }
+  .waves span:nth-child(1){animation-delay:0s} .waves span:nth-child(2){animation-delay:.1s}
+  .waves span:nth-child(3){animation-delay:.2s} .waves span:nth-child(4){animation-delay:.3s}
+  .waves span:nth-child(5){animation-delay:.4s} .waves span:nth-child(6){animation-delay:.3s}
+  .waves span:nth-child(7){animation-delay:.2s} .waves span:nth-child(8){animation-delay:.1s}
+  .waves span:nth-child(9){animation-delay:0s}
+  .typed{margin-top:22px; padding:14px 16px; background:var(--bg-alt); border-radius:10px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.92rem; color:var(--mono); min-height:1.4em}
+  .typed .cursor{display:inline-block; width:2px; height:1em; background:var(--accent); vertical-align:middle; margin-left:2px; animation:blink 1s step-end infinite}
+  @keyframes blink{50%{opacity:0}}
+  .caption{text-align:center; font-size:.82rem; color:var(--text-dim); margin-top:16px}
+
+  section{padding:56px 0}
+  section h2{font-size:1.7rem; margin:0 0 8px; letter-spacing:-0.01em}
+  section p.lead{color:var(--text-dim); margin:0 0 32px; max-width:560px}
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:20px}
+  .card{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:22px}
+  .card h3{margin:0 0 8px; font-size:1.02rem}
+  .card p{margin:0; color:var(--text-dim); font-size:.92rem}
+  .card .icon{font-size:1.5rem; margin-bottom:10px; display:block}
+
+  .compare{width:100%; border-collapse:collapse; font-size:.92rem; background:var(--card);
+    border:1px solid var(--border); border-radius:14px; overflow:hidden}
+  .compare th,.compare td{padding:14px 16px; text-align:left; border-bottom:1px solid var(--border)}
+  .compare th{color:var(--text-dim); font-weight:600; font-size:.82rem; text-transform:uppercase; letter-spacing:.03em}
+  .compare tr:last-child td{border-bottom:none}
+  .compare td.yes{color:var(--accent); font-weight:700}
+  .compare td.no{color:var(--text-dim)}
+  .compare-scroll{overflow-x:auto}
+
+  .downloads{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px}
+  .dl-card{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:22px}
+  .dl-card h3{margin:0 0 4px; font-size:1rem; display:flex; align-items:center; gap:8px}
+  .dl-card p{margin:0 0 14px; color:var(--text-dim); font-size:.85rem}
+  .dl-links{display:flex; flex-direction:column; gap:8px}
+  .dl-links a{
+    display:flex; align-items:center; justify-content:space-between; padding:10px 14px;
+    background:var(--bg-alt); border-radius:8px; text-decoration:none; font-size:.88rem; font-weight:500;
+  }
+  .dl-links a:hover{background:var(--accent-dim)}
+  .dl-links a .arrow{opacity:.5}
+
+  footer{border-top:1px solid var(--border); padding:32px 0; margin-top:40px}
+  footer .wrap{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;
+    color:var(--text-dim); font-size:.85rem}
+  footer a{text-decoration:none; color:var(--text-dim)}
+  footer a:hover{color:var(--text)}
+
+  @media (max-width:600px){
+    nav a{margin-left:14px; font-size:.85rem}
+    .demo{padding:24px 18px}
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#"><span class="dot"></span>push2talk</a>
+    <nav>
+      <a href="#how">How it works</a>
+      <a href="#download">Download</a>
+      <a href="https://github.com/arunmiriappalli/push2talk">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="hero wrap">
+  <h1>Hold a key. Speak.<br>Release it. <span class="accent">It's typed.</span></h1>
+  <p class="sub">Local push-to-talk dictation, powered by Whisper. Free, open-source,
+    and your voice never leaves your machine — not for a second.</p>
+  <div class="cta-row">
+    <a class="btn btn-primary" href="#download">Download for free ↓</a>
+    <a class="btn btn-secondary" href="https://github.com/arunmiriappalli/push2talk">View on GitHub</a>
+  </div>
+  <div class="hint">Linux &amp; macOS &middot; no account, no cloud, no telemetry</div>
+
+  <div class="demo">
+    <div class="demo-row">
+      <div class="key" id="key">FN</div>
+      <div class="waves" id="waves" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span>
+      </div>
+    </div>
+    <div class="typed" id="typed">&nbsp;<span class="cursor"></span></div>
+    <div class="caption">Illustrative — hold your push-to-talk key, speak, release, and the transcript is typed at your cursor.</div>
+  </div>
+</div>
+
+<div class="wrap">
+  <section id="how">
+    <h2>How it works</h2>
+    <p class="lead">No servers, no API keys, no account. Everything happens on your machine.</p>
+    <div class="grid">
+      <div class="card">
+        <span class="icon">⌨️</span>
+        <h3>1. Hold your hotkey</h3>
+        <p>Pick any key in the setup wizard. Holding it starts recording from your chosen microphone.</p>
+      </div>
+      <div class="card">
+        <span class="icon">🎙️</span>
+        <h3>2. Speak</h3>
+        <p>Audio is captured locally and resampled for Whisper — nothing is sent anywhere.</p>
+      </div>
+      <div class="card">
+        <span class="icon">🧠</span>
+        <h3>3. Release</h3>
+        <p>whisper.cpp transcribes on-device, GPU-accelerated via Vulkan (Linux) or Metal (macOS).</p>
+      </div>
+      <div class="card">
+        <span class="icon">✍️</span>
+        <h3>4. It's typed</h3>
+        <p>The transcript is typed wherever your cursor already is — any app, any text field.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Why push2talk</h2>
+    <p class="lead">Most dictation tools ship your voice to a server. This one doesn't, and it doesn't cost anything either.</p>
+    <div class="compare-scroll">
+      <table class="compare">
+        <thead>
+          <tr><th></th><th>push2talk</th><th>Typical cloud dictation apps</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Price</td><td class="yes">Free</td><td class="no">Subscription</td></tr>
+          <tr><td>Audio leaves your machine</td><td class="yes">Never</td><td class="no">Yes, to a server</td></tr>
+          <tr><td>Works offline</td><td class="yes">Yes</td><td class="no">Usually not</td></tr>
+          <tr><td>Open source</td><td class="yes">Yes</td><td class="no">Usually not</td></tr>
+          <tr><td>Platforms</td><td class="yes">Linux, macOS</td><td class="no">Varies</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="download">
+    <h2>Download</h2>
+    <p class="lead">Latest release: v0.2.0. See the <a href="https://github.com/arunmiriappalli/push2talk#installing">full install guide</a> for platform-specific setup (a couple of one-time permission/service steps on both Linux and macOS).</p>
+    <div class="downloads">
+      <div class="dl-card">
+        <h3>🐧 Linux</h3>
+        <p>.deb, .rpm, or the portable AppImage</p>
+        <div class="dl-links">
+          <a href="https://github.com/arunmiriappalli/push2talk/releases/download/v0.2.0/push2talk_0.2.0_amd64.deb">.deb (Debian/Ubuntu) <span class="arrow">→</span></a>
+          <a href="https://github.com/arunmiriappalli/push2talk/releases/download/v0.2.0/push2talk-0.2.0-1.x86_64.rpm">.rpm (Fedora/openSUSE) <span class="arrow">→</span></a>
+          <a href="https://github.com/arunmiriappalli/push2talk/releases/download/v0.2.0/push2talk_0.2.0_amd64.AppImage">.AppImage (any distro) <span class="arrow">→</span></a>
+        </div>
+      </div>
+      <div class="dl-card">
+        <h3>🍎 macOS</h3>
+        <p>Unsigned build — see install guide for the Gatekeeper workaround</p>
+        <div class="dl-links">
+          <a href="https://github.com/arunmiriappalli/push2talk/releases/download/v0.2.0/push2talk_0.2.0_aarch64.dmg">Apple Silicon (M-series) <span class="arrow">→</span></a>
+          <a href="https://github.com/arunmiriappalli/push2talk/releases/download/v0.2.0/push2talk_0.2.0_x64.dmg">Intel <span class="arrow">→</span></a>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<footer>
+  <div class="wrap">
+    <div>push2talk is free and open source under the MIT license.</div>
+    <div>
+      <a href="https://github.com/arunmiriappalli/push2talk">GitHub</a> &middot;
+      <a href="https://arunmiriappalli.com">arunmiriappalli.com</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Illustrative hold-key / waveform / typed-text loop — not a live recording.
+  (function(){
+    var key = document.getElementById('key');
+    var waves = document.getElementById('waves');
+    var typed = document.getElementById('typed');
+    var phrase = "push to talk, and it's typed right here.";
+    var cycle = 0;
+
+    function reset(){
+      key.classList.remove('active');
+      waves.style.opacity = 0.25;
+      typed.innerHTML = '&nbsp;<span class="cursor"></span>';
+    }
+
+    function run(){
+      key.classList.add('active');
+      waves.style.opacity = 1;
+      var i = 0;
+      var typeInterval = setInterval(function(){
+        i++;
+        typed.innerHTML = phrase.slice(0, i) + '<span class="cursor"></span>';
+        if (i >= phrase.length){
+          clearInterval(typeInterval);
+          setTimeout(function(){
+            reset();
+          }, 1200);
+        }
+      }, 45);
+    }
+
+    reset();
+    setInterval(function(){
+      reset();
+      setTimeout(run, 900);
+    }, 6000);
+    setTimeout(run, 900);
+  })();
+</script>
+
+</body>
+</html>
