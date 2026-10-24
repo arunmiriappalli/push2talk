@@ -1,6 +1,6 @@
 use crate::config::AppConfig;
 use crate::hotkey::{self, HotkeyEvent};
-use crate::{audio, transcribe, typist};
+use crate::{audio, config, rewrite, transcribe, typist};
 use serde::Serialize;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc;
@@ -38,6 +38,7 @@ struct EngineState {
     config: AppConfig,
     transcriber: Option<transcribe::Transcriber>,
     typist: Option<Box<dyn typist::Typist>>,
+    rewriter: Option<rewrite::Rewriter>,
     recording: Option<audio::Recording>,
     record_start: Option<Instant>,
     generation: Arc<AtomicU64>,
@@ -54,6 +55,7 @@ pub fn spawn(app: AppHandle) -> EngineHandle {
             config: AppConfig::default(),
             transcriber: None,
             typist: None,
+            rewriter: None,
             recording: None,
             record_start: None,
             generation: Arc::new(AtomicU64::new(0)),
@@ -130,6 +132,31 @@ impl EngineState {
             }
         }
 
+        if config.crisp_rewrite {
+            if self.rewriter.is_none() {
+                let dir = config::resolve_models_dir(&config.model_dir);
+                if rewrite::is_downloaded(&dir, &config.rewrite_model_path) {
+                    let model = rewrite::effective_model_path(&dir, &config.rewrite_model_path);
+                    match rewrite::Rewriter::load(&dir, &model) {
+                        Ok(r) => self.rewriter = Some(r),
+                        Err(e) => {
+                            log::error!("push2talk: failed to start rewrite server: {e}");
+                            self.emit_status(EngineStatus::Error { message: e });
+                        }
+                    }
+                } else {
+                    log::warn!(
+                        "push2talk: crisp_rewrite enabled but model not downloaded yet; \
+                         download it from Settings"
+                    );
+                }
+            }
+        } else {
+            // Drop it eagerly rather than waiting for the next recording —
+            // it holds real GPU memory (unlike the near-free GrammarChecker).
+            self.rewriter = None;
+        }
+
         self.emit_status(EngineStatus::Idle);
     }
 
@@ -191,8 +218,21 @@ impl EngineState {
             return;
         }
 
+        let mut to_type = text.clone();
+        if self.config.crisp_rewrite {
+            if let Some(rewriter) = &self.rewriter {
+                self.emit_status(EngineStatus::Transcribing);
+                match rewriter.rewrite(&text) {
+                    Ok(Some(rewritten)) => to_type = format!("{to_type}\n{rewritten}"),
+                    Ok(None) => {}
+                    Err(e) => log::error!("push2talk: rewrite failed: {e}"),
+                }
+                self.emit_status(EngineStatus::Idle);
+            }
+        }
+
         if let Some(typist) = &mut self.typist {
-            if let Err(e) = typist.type_text(&text, self.config.typing_delay_ms) {
+            if let Err(e) = typist.type_text(&to_type, self.config.typing_delay_ms) {
                 log::error!("push2talk: typing failed: {e}");
                 self.emit_status(EngineStatus::Error { message: e });
                 self.emit_status(EngineStatus::Idle);

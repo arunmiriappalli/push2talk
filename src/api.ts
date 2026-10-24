@@ -11,6 +11,11 @@ export const api = {
   downloadModel: (file: string, modelDir: string | null) =>
     invoke<string>("download_model", { file, modelDir }),
   typistHealthCheck: () => invoke<null>("typist_health_check"),
+  isLlmDownloaded: (modelDir: string | null, rewriteModelPath: string | null) =>
+    invoke<boolean>("is_llm_downloaded", { modelDir, rewriteModelPath }),
+  downloadLlm: (modelDir: string | null, rewriteModelPath: string | null) =>
+    invoke<string>("download_llm", { modelDir, rewriteModelPath }),
+  pickRewriteModel: () => invoke<string | null>("pick_rewrite_model"),
   getConfig: () => invoke<AppConfig>("get_config"),
   saveConfig: (cfg: AppConfig) => invoke<null>("save_config", { cfg }),
   pickModelDir: () => invoke<string | null>("pick_model_dir"),

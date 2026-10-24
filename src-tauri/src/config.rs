@@ -47,6 +47,19 @@ pub struct AppConfig {
     pub autostart: bool,
     #[serde(default)]
     pub setup_complete: bool,
+    /// Whether to also type a concise, rephrased version (via a local LLM,
+    /// see `rewrite::Rewriter`) on a second line under the raw
+    /// transcription. Defaults off — it needs an explicit model (downloaded
+    /// or picked via `rewrite_model_path`) and adds real inference latency,
+    /// so it shouldn't surprise anyone who hasn't opted in.
+    #[serde(default)]
+    pub crisp_rewrite: bool,
+    /// Path to an existing local GGUF file to use for `crisp_rewrite`
+    /// instead of downloading the bundled default model — e.g. a model
+    /// already present from LM Studio or another local tool. When unset,
+    /// falls back to `rewrite::MODEL_FILE` downloaded into the models dir.
+    #[serde(default)]
+    pub rewrite_model_path: Option<String>,
 }
 
 fn default_min_press_ms() -> u64 {
@@ -68,6 +81,8 @@ impl Default for AppConfig {
             typing_delay_ms: default_typing_delay_ms(),
             autostart: false,
             setup_complete: false,
+            crisp_rewrite: false,
+            rewrite_model_path: None,
         }
     }
 }

@@ -5,6 +5,7 @@ mod engine;
 mod hardware;
 mod hotkey;
 mod models;
+mod rewrite;
 mod transcribe;
 mod typist;
 
@@ -35,6 +36,9 @@ pub fn run() {
             commands::is_model_downloaded,
             commands::download_model,
             commands::typist_health_check,
+            commands::is_llm_downloaded,
+            commands::download_llm,
+            commands::pick_rewrite_model,
             commands::get_config,
             commands::save_config,
             commands::pick_model_dir,

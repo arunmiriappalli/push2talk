@@ -97,6 +97,36 @@ Both have a `mod.rs` that dispatches to `linux.rs` or `macos.rs` via
 - **Typing** — Linux shells out to `ydotool type` (uinput-based, works
   under Wayland). macOS uses `enigo` via CGEvent.
 
+### Crisp rewrite (`rewrite.rs`)
+
+Optional, off by default (`AppConfig::crisp_rewrite`), toggled in Settings.
+Asks a local LLM to rephrase the transcription for clarity/concision; if the
+result differs from the original, the typed output becomes
+`"{original}\n{rewritten}"` so the user can delete whichever line they don't
+want.
+
+**Runs as a separate `llama-server` process, not an in-process library.**
+This was tried first via the `llama-cpp-2` crate and abandoned: both it and
+`whisper-rs` statically link their own vendored copy of `ggml` under the
+same symbol names, which fails at link time with duplicate-symbol errors
+(confirmed by actually trying it, not a hypothetical). `rewrite::Rewriter`
+instead downloads an official llama.cpp release archive once (per-OS: a
+Vulkan build on Linux, the standard Metal-enabled build on macOS — see
+`LLAMA_BUILD`/`SERVER_ASSET` in `rewrite.rs`) and spawns `llama-server` as a
+child process, talking to it over its OpenAI-compatible HTTP API
+(`reqwest::blocking`, since `engine.rs`'s loop is synchronous). On Linux the
+child is spawned with `PR_SET_PDEATHSIG` (via `pre_exec`) so the kernel
+kills it the moment push2talk exits by any means — including `_exit()`,
+which (see below) skips `Drop` entirely. No equivalent exists on macOS,
+where cleanup relies on `Drop` and therefore misses the `_exit()` path (a
+known, documented gap).
+
+The GGUF model itself is either downloaded (Qwen2.5-1.5B-Instruct, a small
+ungated default — see `MODEL_FILE`/`MODEL_URL`) or, via
+`AppConfig::rewrite_model_path`, an arbitrary local file the user points at
+through Settings' file picker (e.g. a larger model already present from LM
+Studio or another tool) — `rewrite::effective_model_path` resolves which.
+
 ### Config and persistence
 
 `config.rs` defines `AppConfig`, stored as JSON at

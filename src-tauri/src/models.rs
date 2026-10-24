@@ -81,6 +81,20 @@ pub async fn download(
     dir: &std::path::Path,
     file: &str,
 ) -> Result<PathBuf, String> {
+    let url = format!("{HF_BASE_URL}/{file}");
+    download_url(app, dir, file, &url).await
+}
+
+/// Same as `download`, but against an arbitrary direct-download URL rather
+/// than one built from `HF_BASE_URL` — used by `rewrite.rs` for its own
+/// (differently-hosted) model, sharing the same progress-event plumbing so
+/// the settings UI's existing download-progress listener covers it too.
+pub async fn download_url(
+    app: &AppHandle,
+    dir: &std::path::Path,
+    file: &str,
+    url: &str,
+) -> Result<PathBuf, String> {
     let dest = model_path(dir, file);
     if dest.is_file() {
         return Ok(dest);
@@ -90,8 +104,7 @@ pub async fn download(
         .await
         .map_err(|e| e.to_string())?;
 
-    let url = format!("{HF_BASE_URL}/{file}");
-    let response = reqwest::get(&url).await.map_err(|e| e.to_string())?;
+    let response = reqwest::get(url).await.map_err(|e| e.to_string())?;
     if !response.status().is_success() {
         return Err(format!("Download failed: HTTP {}", response.status()));
     }

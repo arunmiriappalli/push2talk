@@ -1,6 +1,6 @@
 use crate::config::{AppConfig, HotkeyDescriptor, ModelConfig};
 use crate::engine::EngineHandle;
-use crate::{audio, config, hotkey, models, typist};
+use crate::{audio, config, hotkey, models, rewrite, typist};
 use tauri::{AppHandle, State};
 use tauri_plugin_autostart::ManagerExt;
 
@@ -44,6 +44,36 @@ pub async fn download_model(
 #[tauri::command]
 pub fn typist_health_check() -> Result<(), String> {
     typist::health_check()
+}
+
+#[tauri::command]
+pub fn is_llm_downloaded(model_dir: Option<String>, rewrite_model_path: Option<String>) -> bool {
+    let dir = config::resolve_models_dir(&model_dir);
+    rewrite::is_downloaded(&dir, &rewrite_model_path)
+}
+
+#[tauri::command]
+pub async fn download_llm(
+    app: AppHandle,
+    model_dir: Option<String>,
+    rewrite_model_path: Option<String>,
+) -> Result<String, String> {
+    let dir = config::resolve_models_dir(&model_dir);
+    let path = rewrite::download(&app, &dir, &rewrite_model_path).await?;
+    Ok(path.to_string_lossy().to_string())
+}
+
+/// Opens a native file picker for choosing an existing local GGUF model
+/// (e.g. already downloaded by LM Studio or another tool) to use for the
+/// "crisp rewrite" feature instead of the bundled default. Returns `None`
+/// if the user cancels.
+#[tauri::command]
+pub async fn pick_rewrite_model() -> Option<String> {
+    let handle = rfd::AsyncFileDialog::new()
+        .add_filter("GGUF model", &["gguf"])
+        .pick_file()
+        .await?;
+    Some(handle.path().to_string_lossy().to_string())
 }
 
 #[tauri::command]

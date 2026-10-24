@@ -162,6 +162,17 @@ rm -rf src-tauri/icons/android src-tauri/icons/ios  # this project is desktop-on
   Vulkan (Linux) or Metal (macOS) — falls back to CPU automatically if no
   compatible GPU/driver is found at runtime. The setup wizard detects your
   CPU/RAM/GPU and recommends a model tier accordingly.
+- **Crisp rewrite** (optional, off by default) — spawns `llama-server`
+  (from an official llama.cpp release, downloaded once) as a local
+  subprocess and asks a small LLM to rephrase the transcription for clarity
+  and concision; the rewrite is typed on a second line right under the
+  original so you can pick which one to keep (and delete the other). Enable
+  it in Settings, where you can also point it at any GGUF model you already
+  have locally (e.g. from LM Studio) instead of downloading the bundled
+  default. Like Whisper, this stays entirely on-device — it's a separate
+  process rather than linked into push2talk's own binary, because
+  statically linking llama.cpp and whisper.cpp together fails at link time
+  (both vendor their own copy of `ggml` under the same symbol names).
 - **Typing** — Linux shells out to `ydotool type` (uinput-based, works under
   Wayland). macOS uses `enigo` to simulate keystrokes via CGEvent.
 - **Config** — stored as JSON at `~/.config/push2talk/config.json` (Linux) or

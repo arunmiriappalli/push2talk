@@ -16,6 +16,8 @@ export interface AppConfig {
   typing_delay_ms: number;
   autostart: boolean;
   setup_complete: boolean;
+  crisp_rewrite: boolean;
+  rewrite_model_path: string | null;
 }
 
 export interface ModelInfo {
@@ -54,6 +56,8 @@ export function defaultConfig(): AppConfig {
     typing_delay_ms: 1,
     autostart: false,
     setup_complete: false,
+    crisp_rewrite: false,
+    rewrite_model_path: null,
   };
 }
 

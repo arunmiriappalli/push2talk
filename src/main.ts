@@ -14,6 +14,12 @@ import {
 const WIZARD_STEPS = ["welcome", "mic", "hotkey", "model", "typing", "autostart", "done"] as const;
 type WizardStep = (typeof WIZARD_STEPS)[number];
 
+// Must match `rewrite::MODEL_FILE` in src-tauri/src/rewrite.rs — used as the
+// `downloading`/progress-event key for the "crisp rewrite" LLM, the same way
+// a whisper ModelInfo.file is used for transcription models.
+const LLM_MODEL_FILE = "qwen2.5-1.5b-instruct-q4_k_m.gguf";
+const LLM_MODEL_SIZE_LABEL = "~1.1 GB";
+
 interface State {
   view: "loading" | "wizard" | "settings";
   step: WizardStep;
@@ -23,6 +29,7 @@ interface State {
   hardware: HardwareInfo | null;
   downloading: string | null;
   downloadProgress: number;
+  llmDownloaded: boolean | null;
   typingCheck: { ok: boolean; message: string } | null;
   capturingKey: boolean;
   autostartEnabled: boolean;
@@ -40,6 +47,7 @@ const state: State = {
   hardware: null,
   downloading: null,
   downloadProgress: 0,
+  llmDownloaded: null,
   typingCheck: null,
   capturingKey: false,
   autostartEnabled: false,
@@ -151,6 +159,46 @@ function typingField(): string {
     <div class="field">
       <span>Typing backend</span>
       <div class="row">${status} <button id="recheck-typing-btn" type="button">Recheck</button></div>
+    </div>`;
+}
+
+function crispRewriteField(): string {
+  const isDownloading = state.downloading === LLM_MODEL_FILE;
+  const hasOverride = !!state.cfg.rewrite_model_path;
+  const needsDownload = state.cfg.crisp_rewrite && state.llmDownloaded === false;
+  const modelPath = hasOverride
+    ? state.cfg.rewrite_model_path!
+    : `Default (Qwen2.5-1.5B, ${LLM_MODEL_SIZE_LABEL})`;
+
+  return `
+    <div class="field">
+      <label class="row">
+        <input type="checkbox" id="crisp-rewrite-check" ${state.cfg.crisp_rewrite ? "checked" : ""} />
+        <span>Also type a concise, rephrased version (local AI, slower)</span>
+      </label>
+      ${
+        state.cfg.crisp_rewrite
+          ? `<label class="field">
+              <span>Rewrite model</span>
+              <div class="row">
+                <span class="pill" title="${escapeAttr(modelPath)}">${escapeHtml(truncateMiddle(modelPath, 46))}</span>
+                <button id="pick-rewrite-model-btn" type="button">Choose model file…</button>
+                ${hasOverride ? `<button id="clear-rewrite-model-btn" type="button">Use default</button>` : ""}
+              </div>
+              ${
+                needsDownload
+                  ? `<div class="row">
+                      ${
+                        isDownloading
+                          ? `<progress max="100" value="${state.downloadProgress}"></progress>`
+                          : `<button id="download-llm-btn" type="button">Download ${hasOverride ? "rewrite engine (~35 MB)" : `default model (${LLM_MODEL_SIZE_LABEL})`}</button>`
+                      }
+                    </div>`
+                  : ""
+              }
+            </label>`
+          : ""
+      }
     </div>`;
 }
 
@@ -296,6 +344,7 @@ function renderSettings() {
       ${modelField()}
       ${modelDirField()}
       ${typingField()}
+      ${crispRewriteField()}
       ${autostartField()}
       <div class="row settings-actions">
         <button id="save-btn" type="button" class="primary" ${state.capturingKey ? "disabled" : ""}>Save</button>
@@ -316,6 +365,11 @@ function renderSettings() {
   if (state.models.length === 0) api.listModels().then((m) => ((state.models = m), render()));
   if (!state.hardware) api.detectHardware().then((h) => ((state.hardware = h), render()));
   if (!state.typingCheck) runTypingCheck();
+  if (state.llmDownloaded === null) {
+    api
+      .isLlmDownloaded(state.cfg.model_dir, state.cfg.rewrite_model_path)
+      .then((d) => ((state.llmDownloaded = d), render()));
+  }
   if (state.autostartLoaded) return;
   api.getAutostart().then((v) => {
     state.autostartEnabled = v;
@@ -382,6 +436,41 @@ function attachSharedFieldListeners() {
 
   document.querySelector("#autostart-check")?.addEventListener("change", (e) => {
     state.autostartEnabled = (e.target as HTMLInputElement).checked;
+  });
+
+  document.querySelector("#crisp-rewrite-check")?.addEventListener("change", (e) => {
+    state.cfg.crisp_rewrite = (e.target as HTMLInputElement).checked;
+    render();
+  });
+
+  document.querySelector("#pick-rewrite-model-btn")?.addEventListener("click", async () => {
+    const path = await api.pickRewriteModel();
+    if (path) {
+      state.cfg.rewrite_model_path = path;
+      state.llmDownloaded = null;
+      render();
+    }
+  });
+
+  document.querySelector("#clear-rewrite-model-btn")?.addEventListener("click", () => {
+    state.cfg.rewrite_model_path = null;
+    state.llmDownloaded = null;
+    render();
+  });
+
+  document.querySelector("#download-llm-btn")?.addEventListener("click", async () => {
+    state.downloading = LLM_MODEL_FILE;
+    state.downloadProgress = 0;
+    render();
+    try {
+      await api.downloadLlm(state.cfg.model_dir, state.cfg.rewrite_model_path);
+      state.llmDownloaded = true;
+    } catch (e) {
+      alert(`Download failed: ${e}`);
+    } finally {
+      state.downloading = null;
+      render();
+    }
   });
 }
 
