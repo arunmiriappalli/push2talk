@@ -40,9 +40,10 @@ impl Transcriber {
         Ok(Self { ctx, threads })
     }
 
-    /// Runs transcription on mono 16kHz f32 PCM samples and returns the first
-    /// non-empty line of output, mirroring the original script's
-    /// `awk 'NF{print; exit}'` cleanup (drops leading blank/whitespace segments).
+    /// Runs transcription on mono 16kHz f32 PCM samples and returns all
+    /// non-empty segments joined with spaces (dropping leading/trailing
+    /// blank/whitespace segments, mirroring the original script's
+    /// `awk 'NF{print}'` cleanup).
     pub fn transcribe(&self, samples: &[f32]) -> Result<String, String> {
         let mut state = self
             .ctx
@@ -65,6 +66,7 @@ impl Transcriber {
 
         let n_segments = state.full_n_segments();
 
+        let mut parts = Vec::with_capacity(n_segments as usize);
         for i in 0..n_segments {
             let Some(segment) = state.get_segment(i) else {
                 continue;
@@ -72,9 +74,9 @@ impl Transcriber {
             let text = segment.to_str_lossy().unwrap_or_default();
             let trimmed = text.trim();
             if !trimmed.is_empty() {
-                return Ok(trimmed.to_string());
+                parts.push(trimmed.to_string());
             }
         }
-        Ok(String::new())
+        Ok(parts.join(" "))
     }
 }
